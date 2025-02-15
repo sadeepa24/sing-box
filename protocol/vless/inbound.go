@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -11,11 +12,12 @@ import (
 	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/common/uot"
+	"github.com/sagernet/sing-box/connectedbot"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
-	"github.com/sagernet/sing-vmess"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing-vmess/vless"
 	"github.com/sagernet/sing/common"
@@ -43,6 +45,8 @@ type Inbound struct {
 	service   *vless.Service[int]
 	tlsConfig tls.ServerConfig
 	transport adapter.V2RayServerTransport
+
+	userss    sync.Map //to add users realtime
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VLESSInboundOptions) (adapter.Inbound, error) {
@@ -52,6 +56,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		router:  uot.NewRouter(router, logger),
 		logger:  logger,
 		users:   options.Users,
+		userss: sync.Map{},
 	}
 	var err error
 	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
@@ -163,12 +168,29 @@ func (h *Inbound) newConnectionEx(ctx context.Context, conn net.Conn, metadata a
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	// user := h.users[userIndex].Name
+	// if user == "" {
+	// 	user = F.ToString(userIndex)
+	// } else {
+	// 	metadata.User = user
+	// }
+
+	user := ""
+	useerr, ok := h.userss.Load(userIndex)
+	if ok {
+		userob, ok := useerr.(string)
+		if ok {
+			user = userob
+		}
+	}
+
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
 		metadata.User = user
 	}
+
+
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
@@ -181,12 +203,23 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
-	if user == "" {
-		user = F.ToString(userIndex)
-	} else {
-		metadata.User = user
+	// user := h.users[userIndex].Name
+	// if user == "" {
+	// 	user = F.ToString(userIndex)
+	// } else {
+	// 	metadata.User = user
+	// }
+
+	user := ""
+	useerr, ok := h.userss.Load(userIndex)
+	if ok {
+		userob, ok := useerr.(string)
+		if ok {
+			user = userob
+		}
 	}
+
+
 	if metadata.Destination.Fqdn == packetaddr.SeqPacketMagicAddress {
 		metadata.Destination = M.Socksaddr{}
 		conn = packetaddr.NewConn(conn.(vmess.PacketConn), metadata.Destination)
@@ -207,4 +240,177 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnectionEx(ctx, conn, metadata, onClose)
+}
+
+
+
+
+func (h *Inbound) AddUser(user connectedbot.BotUser) (connectedbot.StatusOutput, error) {
+	
+	var status connectedbot.StatusOutput
+	
+	if user.Intype != C.TypeVLESS {
+		return status, E.New("Invalid Inbound Type")
+	}
+	newuser, ok := user.User.(connectedbot.Vlessuser)
+	if !ok {
+		return status, E.New("Cannot convert user into ")
+	}
+	uid, err := newuser.Getuid()
+	if err != nil {
+		return status, err
+	}
+
+	_, Avlbl := h.service.CheckUser(uid)
+	if Avlbl {
+		usrstatus, err := h.service.Getstatus(uid)
+		if err != nil {
+			return status, err
+		}
+		return connectedbot.StatusOutput{
+			Type: C.TypeVLESS,
+			Status: connectedbot.VlessStatus{
+				Disabled: usrstatus.Disabled,
+				Download: usrstatus.Download,
+				Upload: usrstatus.Upload,
+			},
+		}, nil
+	}
+	h.userss.Store(newuser.User, newuser.VlessUser.Name)
+	err = h.service.Adduser(uid, newuser.VlessUser.Maxlogin, newuser.Bandwidth, newuser.User, newuser.VlessUser.Flow)
+	return connectedbot.StatusOutput{
+		Type: C.TypeVLESS,
+		Status: connectedbot.VlessStatus{
+			Disabled: false,
+			Download: 0,
+			Upload: 0,
+		},
+	}, err
+}
+
+
+func (h *Inbound) AddUserReset(user connectedbot.BotUser) (connectedbot.StatusOutput, error) {
+	var status connectedbot.StatusOutput
+	if user.Intype != C.TypeVLESS {
+		return status, E.New("Invalid Inbound Type")
+	}
+	newuser, ok := user.User.(connectedbot.Vlessuser)
+	if !ok {
+		return status, E.New("Cannot convert user into ")
+	}
+	uid, err := newuser.Getuid()
+	if err != nil {
+		return status, err
+	}
+	res := connectedbot.StatusOutput{
+		Type: C.TypeVLESS,
+		Status: connectedbot.VlessStatus{
+			Disabled: false,
+			Download: 0,
+			Upload: 0,
+		},
+	}
+	_, Avlbl := h.service.CheckUser(uid)
+	if Avlbl {
+		usrstatus, err := h.service.RemoveUser(uid)
+		if err != nil {
+			return status, err
+		}
+		h.userss.Delete(newuser.User)
+		res.Status = connectedbot.VlessStatus{
+			Disabled: usrstatus.Disabled,
+			Download: (usrstatus.Download),
+			Upload: (usrstatus.Upload),
+		}
+	}
+	h.userss.Store(newuser.User, newuser.VlessUser.Name)
+	err = h.service.Adduser(uid, newuser.VlessUser.Maxlogin, newuser.Bandwidth, newuser.User, newuser.VlessUser.Flow)
+	
+	return res, err
+}
+
+func (h *Inbound) RemoveUser(user connectedbot.BotUser) (connectedbot.StatusOutput, error) {
+	var status connectedbot.StatusOutput
+	
+	
+	if user.Intype != C.TypeVLESS {
+		return status, E.New("Invalid Inbound Type")
+	}
+	newuser, ok := user.User.(connectedbot.Vlessuser)
+	if !ok {
+		return status, E.New("Cannot convert user into connectedbot.Vlessuser ")
+	}
+	uid, err := newuser.Getuid()
+	if err != nil {
+		return status, err
+	}
+	
+	
+	usrstatus, err := h.service.RemoveUser(uid)
+	h.userss.Delete(newuser.User)
+
+	if err != nil {
+		return status, err
+	}
+	return connectedbot.StatusOutput{
+		Type: C.TypeVLESS,
+		Status: connectedbot.VlessStatus{
+			Disabled: usrstatus.Disabled,
+			Download: usrstatus.Download,
+			Upload: usrstatus.Upload,
+			Online_ip: usrstatus.Ipmap,
+		},
+	}, nil
+
+}
+
+func (h *Inbound) GetastatusUser(user connectedbot.BotUser) (connectedbot.StatusOutput, error) {
+	
+	var status connectedbot.StatusOutput
+
+
+	if user.Intype != C.TypeVLESS {
+		return status, E.New("Invalid Inbound Type")
+	}
+	newuser, ok := user.User.(connectedbot.Vlessuser)
+	if !ok {
+		return status, E.New("Cannot convert user into ")
+	}
+	uid, err := newuser.Getuid()
+	if err != nil {
+		return status, err
+	}
+
+	usrstatus, err := h.service.Getstatus(uid)
+
+	if err != nil {
+		return status, err
+	}
+	return connectedbot.StatusOutput{
+		Type: C.TypeVLESS,
+		Status: connectedbot.VlessStatus{
+			Disabled: usrstatus.Disabled,
+			Download: usrstatus.Download,
+			Upload: usrstatus.Upload,
+			Online_ip: usrstatus.Ipmap,
+		},
+	}, nil
+	
+}
+
+func (h *Inbound) CloseAll(user connectedbot.BotUser) error {
+
+	if user.Intype != C.TypeVLESS {
+		return E.New("Invalid Inbound Type")
+	}
+	newuser, ok := user.User.(connectedbot.Vlessuser)
+	if !ok {
+		return E.New("Cannot convert user into ")
+	}
+	uid, err := newuser.Getuid()
+	if err != nil {
+		return err
+	}
+	h.service.CloseAll(uid)
+	return nil
 }

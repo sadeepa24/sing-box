@@ -40,6 +40,8 @@ type Router struct {
 	platformInterface platform.Interface
 	needWIFIState     bool
 	started           bool
+
+	//directusermap sync.Map
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions) *Router {
@@ -58,16 +60,28 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[platform.Interface](ctx),
 		needWIFIState:     hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
+		//directusermap: sync.Map{},
 	}
 }
 
 func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) error {
 	for i, options := range rules {
-		rule, err := R.NewRule(r.ctx, r.logger, options, false)
+		var (
+			rule adapter.Rule
+			err error
+		)
+		if options.Type == "botrule" {
+			rule, err = NewBotRule(r.ctx, r.logger, options, false)
+		} else {	
+			rule, err = R.NewRule(r.ctx, r.logger, options, false)
+		}
+
 		if err != nil {
 			return E.Cause(err, "parse rule[", i, "]")
 		}
 		r.rules = append(r.rules, rule)
+		
+
 	}
 	for i, options := range ruleSets {
 		if _, exists := r.ruleSetMap[options.Tag]; exists {

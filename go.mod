@@ -55,6 +55,8 @@ require (
 
 //replace github.com/sagernet/sing => ../sing
 
+replace github.com/sagernet/sing-vmess => ../sing-vmess
+
 require (
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect

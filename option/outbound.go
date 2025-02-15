@@ -20,6 +20,8 @@ type OutboundOptionsRegistry interface {
 type _Outbound struct {
 	Type    string `json:"type"`
 	Tag     string `json:"tag,omitempty"`
+	Id 		*int    `json:"id,omitempty"`
+	Custom_info string `json:"info,omitempty"`
 	Options any    `json:"-"`
 }
 

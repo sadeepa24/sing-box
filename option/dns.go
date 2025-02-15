@@ -69,9 +69,19 @@ type DNSTransportOptionsRegistry interface {
 }
 
 type _NewDNSServerOptions struct {
-	Type    string `json:"type,omitempty"`
+	// Type    string `json:"type,omitempty"`
+	// Tag     string `json:"tag,omitempty"`
+	// Options any    `json:"-"`
+	// Id 		*int    `json:"id,omitempty"`
+	// Custom_info string `json:"info,omitempty"`
+
+	Type    string `json:"type"`
 	Tag     string `json:"tag,omitempty"`
+	Id 		*int    `json:"id,omitempty"`
+	Custom_info string `json:"info,omitempty"`
 	Options any    `json:"-"`
+
+
 }
 
 type NewDNSServerOptions _NewDNSServerOptions
