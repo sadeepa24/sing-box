@@ -21,7 +21,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-box/transport/fakeip"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -111,12 +111,29 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		},
 		Logger: router.dnsLogger,
 	})
-	for i, ruleOptions := range options.Rules {
-		routeRule, err := R.NewRule(ctx, router.logger, ruleOptions, true)
+	// for i, ruleOptions := range options.Rules {
+	// 	routeRule, err := R.NewRule(ctx, router.logger, ruleOptions, true)
+	// 	if err != nil {
+	// 		return nil, E.Cause(err, "parse rule[", i, "]")
+	// 	}
+	// 	router.rules = append(router.rules, routeRule)
+	// }
+
+	for i, options := range options.Rules  {
+		var (
+			rule adapter.Rule
+			err error
+		)
+		if options.Type == "botrule" {
+			rule, err = NewBotRule(ctx, router.logger, options, false)
+		} else {	
+			rule, err = R.NewRule(ctx, router.logger, options, false)
+		}
+
 		if err != nil {
 			return nil, E.Cause(err, "parse rule[", i, "]")
 		}
-		router.rules = append(router.rules, routeRule)
+		router.rules = append(router.rules, rule)
 	}
 	for i, dnsRuleOptions := range dnsOptions.Rules {
 		dnsRule, err := R.NewDNSRule(ctx, router.logger, dnsRuleOptions, true)

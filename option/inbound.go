@@ -19,6 +19,11 @@ type _Inbound struct {
 	Type    string `json:"type"`
 	Tag     string `json:"tag,omitempty"`
 	Options any    `json:"-"`
+	Id 		*int    `json:"id,omitempty"`
+	Custom_info string `json:"info,omitempty"`
+	Domain string
+	Public_Ip string
+	SupportInfo []string `json:"support_info,omitempty"`
 }
 
 type Inbound _Inbound

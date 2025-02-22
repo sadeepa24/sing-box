@@ -38,4 +38,5 @@ const (
 const (
 	RuleActionRejectMethodDefault = "default"
 	RuleActionRejectMethodDrop    = "drop"
+	RuleTypeBot     = "botrule"
 )

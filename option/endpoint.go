@@ -17,6 +17,8 @@ type _Endpoint struct {
 	Type    string `json:"type"`
 	Tag     string `json:"tag,omitempty"`
 	Options any    `json:"-"`
+	Id 		*int    `json:"id,omitempty"`
+	Custom_info string `json:"info,omitempty"`
 }
 
 type Endpoint _Endpoint
