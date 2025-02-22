@@ -3,7 +3,6 @@ package constant
 const (
 	RuleTypeDefault = "default"
 	RuleTypeLogical = "logical"
-	RuleTypeBot     = "botrule"
 )
 
 const (

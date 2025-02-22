@@ -6,7 +6,6 @@ import (
 )
 
 type PlatformInterface interface {
-	LocalDNSTransport() LocalDNSTransport
 	UsePlatformAutoDetectInterfaceControl() bool
 	AutoDetectInterfaceControl(fd int32) error
 	OpenTun(options TunOptions) (int32, error)
@@ -21,7 +20,6 @@ type PlatformInterface interface {
 	UnderNetworkExtension() bool
 	IncludeAllNetworks() bool
 	ReadWIFIState() *WIFIState
-	SystemCertificates() StringIterator
 	ClearDNSCache()
 	SendNotification(notification *Notification) error
 }

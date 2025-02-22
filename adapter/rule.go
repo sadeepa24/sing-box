@@ -13,6 +13,7 @@ type Rule interface {
 	HeadlessRule
 	Service
 	Type() string
+	UpdateGeosite() error
 	Action() RuleAction
 }
 

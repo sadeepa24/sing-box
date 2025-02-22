@@ -25,9 +25,6 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	case C.RuleTypeDefault:
 		r.Type = ""
 		v = r.DefaultOptions
-	case C.RuleTypeBot:
-		r.Type = "botrule"
-		v = r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = r.LogicalOptions
 	default:
@@ -45,9 +42,6 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 	switch r.Type {
 	case "", C.RuleTypeDefault:
 		r.Type = C.RuleTypeDefault
-		v = &r.DefaultOptions
-	case C.RuleTypeBot:
-		r.Type = "botrule"
 		v = &r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = &r.LogicalOptions

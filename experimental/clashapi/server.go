@@ -42,13 +42,12 @@ var _ adapter.ClashServer = (*Server)(nil)
 type Server struct {
 	ctx            context.Context
 	router         adapter.Router
-	dnsRouter      adapter.DNSRouter
 	outbound       adapter.OutboundManager
 	endpoint       adapter.EndpointManager
 	logger         log.Logger
 	httpServer     *http.Server
 	trafficManager *trafficontrol.Manager
-	urlTestHistory adapter.URLTestHistoryStorage
+	urlTestHistory *urltest.HistoryStorage
 	mode           string
 	modeList       []string
 	modeUpdateHook chan<- struct{}
@@ -63,12 +62,11 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
 	s := &Server{
-		ctx:       ctx,
-		router:    service.FromContext[adapter.Router](ctx),
-		dnsRouter: service.FromContext[adapter.DNSRouter](ctx),
-		outbound:  service.FromContext[adapter.OutboundManager](ctx),
-		endpoint:  service.FromContext[adapter.EndpointManager](ctx),
-		logger:    logFactory.NewLogger("clash-api"),
+		ctx:      ctx,
+		router:   service.FromContext[adapter.Router](ctx),
+		outbound: service.FromContext[adapter.OutboundManager](ctx),
+		endpoint: service.FromContext[adapter.EndpointManager](ctx),
+		logger:   logFactory.NewLogger("clash-api"),
 		httpServer: &http.Server{
 			Addr:    options.ExternalController,
 			Handler: chiRouter,
@@ -79,7 +77,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
 	}
-	s.urlTestHistory = service.FromContext[adapter.URLTestHistoryStorage](ctx)
+	s.urlTestHistory = service.PtrFromContext[urltest.HistoryStorage](ctx)
 	if s.urlTestHistory == nil {
 		s.urlTestHistory = urltest.NewHistoryStorage()
 	}
@@ -123,7 +121,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		r.Mount("/script", scriptRouter())
 		r.Mount("/profile", profileRouter())
 		r.Mount("/cache", cacheRouter(ctx))
-		r.Mount("/dns", dnsRouter(s.dnsRouter))
+		r.Mount("/dns", dnsRouter(s.router))
 
 		s.setupMetaAPI(r)
 	})
@@ -223,7 +221,7 @@ func (s *Server) SetMode(newMode string) {
 		default:
 		}
 	}
-	s.dnsRouter.ClearCache()
+	s.router.ClearDNSCache()
 	cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
 	if cacheFile != nil {
 		err := cacheFile.StoreMode(newMode)
@@ -234,7 +232,7 @@ func (s *Server) SetMode(newMode string) {
 	s.logger.Info("updated mode: ", newMode)
 }
 
-func (s *Server) HistoryStorage() adapter.URLTestHistoryStorage {
+func (s *Server) HistoryStorage() *urltest.HistoryStorage {
 	return s.urlTestHistory
 }
 

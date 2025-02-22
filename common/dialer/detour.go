@@ -29,16 +29,14 @@ func (d *DetourDialer) Start() error {
 }
 
 func (d *DetourDialer) Dialer() (N.Dialer, error) {
-	d.initOnce.Do(d.init)
+	d.initOnce.Do(func() {
+		var loaded bool
+		d.dialer, loaded = d.outboundManager.Outbound(d.detour)
+		if !loaded {
+			d.initErr = E.New("outbound detour not found: ", d.detour)
+		}
+	})
 	return d.dialer, d.initErr
-}
-
-func (d *DetourDialer) init() {
-	var loaded bool
-	d.dialer, loaded = d.outboundManager.Outbound(d.detour)
-	if !loaded {
-		d.initErr = E.New("outbound detour not found: ", d.detour)
-	}
 }
 
 func (d *DetourDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

@@ -1,10 +1,6 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
-
-!!! quote "sing-box 1.12.0 中的更改"
-
-    :material-delete-clock: [outbound](#outbound)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -398,10 +394,6 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 反选匹配结果。
 
 #### outbound
-
-!!! failure "已在 sing-box 1.12.0 废弃"
-
-    `outbound` 规则项已废弃且将在 sing-box 1.14.0 中被移除，参阅 [迁移指南](/migration/#migrate-outbound-dns-rule-items-to-domain-resolver)。
 
 匹配出站。
 

@@ -6,6 +6,7 @@ import (
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/json/badoption"
 
@@ -33,7 +34,7 @@ func TestTUICDomainUDP(t *testing.T) {
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 						InboundOptions: option.InboundOptions{
-							DomainStrategy: option.DomainStrategy(C.DomainStrategyIPv6Only),
+							DomainStrategy: option.DomainStrategy(dns.DomainStrategyUseIPv6),
 						},
 					},
 					Users: []option.TUICUser{{

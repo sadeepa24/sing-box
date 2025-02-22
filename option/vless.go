@@ -12,8 +12,6 @@ type VLESSUser struct {
 	Name string `json:"name"`
 	UUID string `json:"uuid"`
 	Flow string `json:"flow,omitempty"`
-
-	Maxlogin int `json:"maxlogin,omitempty"`
 }
 
 type VLESSOutboundOptions struct {

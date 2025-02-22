@@ -1,14 +1,8 @@
 ---
-icon: material/alert-decagram
+icon: material/new-box
 ---
 
 # Route
-
-!!! quote "Changes in sing-box 1.12.0"
-
-    :material-plus: [default_domain_resolver](#default_domain_resolver)  
-    :material-note-remove: [geoip](#geoip)  
-    :material-note-remove: [geosite](#geosite)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -28,6 +22,8 @@ icon: material/alert-decagram
 ```json
 {
   "route": {
+    "geoip": {},
+    "geosite": {},
     "rules": [],
     "rule_set": [],
     "final": "",
@@ -35,16 +31,10 @@ icon: material/alert-decagram
     "override_android_vpn": false,
     "default_interface": "",
     "default_mark": 0,
-    "default_domain_resolver": "", // or {}
     "default_network_strategy": "",
     "default_network_type": [],
     "default_fallback_network_type": [],
-    "default_fallback_delay": "",
-    
-    // Removed
-
-    "geoip": {},
-    "geosite": {}
+    "default_fallback_delay": ""
   }
 }
 ```
@@ -106,14 +96,6 @@ Takes no effect if `auto_detect_interface` is set.
 Set routing mark by default.
 
 Takes no effect if `outbound.routing_mark` is set.
-
-#### default_domain_resolver
-
-!!! question "Since sing-box 1.12.0"
-
-See [Dial Fields](/configuration/shared/dial/#domain_resolver) for details.
-
-Can be overrides by `outbound.domain_resolver`.
 
 #### default_network_strategy
 

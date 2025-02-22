@@ -16,7 +16,6 @@ const (
 	StopTimeout                = 5 * time.Second
 	FatalStopTimeout           = 10 * time.Second
 	FakeIPMetadataSaveInterval = 10 * time.Second
-	TLSFragmentFallbackDelay   = 500 * time.Millisecond
 )
 
 var PortProtocols = map[uint16]string{

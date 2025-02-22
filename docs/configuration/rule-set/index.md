@@ -1,3 +1,7 @@
+---
+icon: material/new-box
+---
+
 !!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: `type: inline`
@@ -70,7 +74,7 @@ Tag of rule-set.
 
 ==Required==
 
-List of [Headless Rule](../headless-rule/).
+List of [Headless Rule](./headless-rule/).
 
 ### Local or Remote Fields
 

@@ -111,13 +111,19 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Geosite) > 0 {
-		return nil, E.New("geosite database is deprecated in sing-box 1.8.0 and removed in sing-box 1.12.0")
+		item := NewGeositeItem(router, logger, options.Geosite)
+		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourceGeoIP) > 0 {
-		return nil, E.New("geoip database is deprecated in sing-box 1.8.0 and removed in sing-box 1.12.0")
+		item := NewGeoIPItem(router, logger, true, options.SourceGeoIP)
+		rule.sourceAddressItems = append(rule.sourceAddressItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.GeoIP) > 0 {
-		return nil, E.New("geoip database is deprecated in sing-box 1.8.0 and removed in sing-box 1.12.0")
+		item := NewGeoIPItem(router, logger, false, options.GeoIP)
+		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
+		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
@@ -142,11 +148,6 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 	}
 	if options.IPIsPrivate {
 		item := NewIPIsPrivateItem(false)
-		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
-		rule.allItems = append(rule.allItems, item)
-	}
-	if options.IPAcceptAny {
-		item := NewIPAcceptAnyItem()
 		rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
@@ -210,7 +211,7 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Outbound) > 0 {
-		item := NewOutboundRule(ctx, options.Outbound)
+		item := NewOutboundRule(options.Outbound)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}

@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"time"
 
+	"github.com/sagernet/sing-box/common/urltest"
+	"github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/varbin"
 )
 
@@ -14,20 +16,7 @@ type ClashServer interface {
 	ConnectionTracker
 	Mode() string
 	ModeList() []string
-	HistoryStorage() URLTestHistoryStorage
-}
-
-type URLTestHistory struct {
-	Time  time.Time `json:"time"`
-	Delay uint16    `json:"delay"`
-}
-
-type URLTestHistoryStorage interface {
-	SetHook(hook chan<- struct{})
-	LoadURLTestHistory(tag string) *URLTestHistory
-	DeleteURLTestHistory(tag string)
-	StoreURLTestHistory(tag string, history *URLTestHistory)
-	Close() error
+	HistoryStorage() *urltest.HistoryStorage
 }
 
 type V2RayServer interface {
@@ -42,7 +31,7 @@ type CacheFile interface {
 	FakeIPStorage
 
 	StoreRDRC() bool
-	RDRCStore
+	dns.RDRCStore
 
 	LoadMode() string
 	StoreMode(mode string) error

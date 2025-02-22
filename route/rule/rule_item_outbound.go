@@ -1,11 +1,9 @@
 package rule
 
 import (
-	"context"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/experimental/deprecated"
 	F "github.com/sagernet/sing/common/format"
 )
 
@@ -17,8 +15,7 @@ type OutboundItem struct {
 	matchAny    bool
 }
 
-func NewOutboundRule(ctx context.Context, outbounds []string) *OutboundItem {
-	deprecated.Report(ctx, deprecated.OptionOutboundDNSRuleItem)
+func NewOutboundRule(outbounds []string) *OutboundItem {
 	rule := &OutboundItem{outbounds: outbounds, outboundMap: make(map[string]bool)}
 	for _, outbound := range outbounds {
 		if outbound == "any" {
@@ -31,8 +28,8 @@ func NewOutboundRule(ctx context.Context, outbounds []string) *OutboundItem {
 }
 
 func (r *OutboundItem) Match(metadata *adapter.InboundContext) bool {
-	if r.matchAny {
-		return metadata.Outbound != ""
+	if r.matchAny && metadata.Outbound != "" {
+		return true
 	}
 	return r.outboundMap[metadata.Outbound]
 }

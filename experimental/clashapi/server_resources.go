@@ -3,7 +3,6 @@ package clashapi
 import (
 	"archive/zip"
 	"context"
-	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service/filemanager"
 )
 
@@ -61,10 +59,6 @@ func (s *Server) downloadExternalUI() error {
 			TLSHandshakeTimeout: C.TCPTimeout,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return detour.DialContext(ctx, network, M.ParseSocksaddr(addr))
-			},
-			TLSClientConfig: &tls.Config{
-				Time:    ntp.TimeFuncFromContext(s.ctx),
-				RootCAs: adapter.RootPoolFromContext(s.ctx),
 			},
 		},
 	}

@@ -23,7 +23,6 @@ type Config struct {
 }
 
 type Info struct {
-	ProcessID   uint32
 	ProcessPath string
 	PackageName string
 	User        string

@@ -1,10 +1,10 @@
 ---
-icon: material/note-remove
+icon: material/delete-clock
 ---
 
-!!! failure "Removed in sing-box 1.12.0"
+!!! failure "Deprecated in sing-box 1.8.0"
 
-    Geosite is deprecated in sing-box 1.8.0 and removed in sing-box 1.12.0, check [Migration](/migration/#migrate-geosite-to-rule-sets).
+    Geosite is deprecated and will be removed in sing-box 1.12.0, check [Migration](/migration/#migrate-geosite-to-rule-sets).
 
 ### Structure
 
