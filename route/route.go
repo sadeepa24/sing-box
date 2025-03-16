@@ -17,9 +17,9 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-mux"
-	"github.com/sagernet/sing-vmess"
+	dns "github.com/sagernet/sing-dns"
+	mux "github.com/sagernet/sing-mux"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -124,8 +124,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			for _, buffer := range buffers {
 				conn = bufio.NewCachedConn(conn, buffer)
 			}
-			r.hijackDNSStream(ctx, conn, metadata)
-			return nil
+			return r.hijackDNSStream(ctx, conn, metadata)
 		}
 	}
 	if selectedRule == nil {
