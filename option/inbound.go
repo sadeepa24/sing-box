@@ -18,6 +18,11 @@ type InboundOptionsRegistry interface {
 type _Inbound struct {
 	Type    string `json:"type"`
 	Tag     string `json:"tag,omitempty"`
+	Domain  string  `json:"public_domain,omitempty"`
+	Id 		*int16 `json:"id,omitempty"`
+	Public_Ip string `json:"public_ip,omitempty"`
+	Custom_info string `json:"info,omitempty"`
+	SupportInfo []string `json:"support_info,omitempty"`
 	Options any    `json:"-"`
 }
 

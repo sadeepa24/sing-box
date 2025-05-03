@@ -3,6 +3,7 @@ package constant
 const (
 	RuleTypeDefault = "default"
 	RuleTypeLogical = "logical"
+	RuleTypeBot = "botrule"
 )
 
 const (
@@ -33,6 +34,7 @@ const (
 	RuleActionTypeHijackDNS    = "hijack-dns"
 	RuleActionTypeSniff        = "sniff"
 	RuleActionTypeResolve      = "resolve"
+	RuleActionTypePredefined   = "predefined"
 )
 
 const (

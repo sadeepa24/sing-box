@@ -12,11 +12,11 @@ import (
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/botmanager"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
@@ -45,6 +45,9 @@ type Box struct {
 	router     *route.Router
 	services   []adapter.LifecycleService
 	done       chan struct{}
+
+	// for connected bot			
+	*botmanager.Manager
 }
 
 type Options struct {
@@ -103,17 +106,17 @@ func New(options Options) (*Box, error) {
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
 	applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
 	var needCacheFile bool
-	var needClashAPI bool
-	var needV2RayAPI bool
+	// var needClashAPI bool
+	// var needV2RayAPI bool
 	if experimentalOptions.CacheFile != nil && experimentalOptions.CacheFile.Enabled || options.PlatformLogWriter != nil {
 		needCacheFile = true
 	}
-	if experimentalOptions.ClashAPI != nil || options.PlatformLogWriter != nil {
-		needClashAPI = true
-	}
-	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
-		needV2RayAPI = true
-	}
+	// if experimentalOptions.ClashAPI != nil || options.PlatformLogWriter != nil {
+	// 	needClashAPI = true
+	// }
+	// if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
+	// 	needV2RayAPI = true
+	// }
 	platformInterface := service.FromContext[platform.Interface](ctx)
 	var defaultLogWriter io.Writer
 	if platformInterface != nil {
@@ -122,7 +125,7 @@ func New(options Options) (*Box, error) {
 	logFactory, err := log.New(log.Options{
 		Context:        ctx,
 		Options:        common.PtrValueOrDefault(options.Log),
-		Observable:     needClashAPI,
+		//Observable:     needClashAPI,
 		DefaultWriter:  defaultLogWriter,
 		BaseTime:       createdAt,
 		PlatformWriter: options.PlatformLogWriter,
@@ -151,6 +154,10 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "initialize router")
 	}
 
+	botmanager, err := botmanager.NewManager(inboundManager, router)
+	if err != nil {
+		return nil, E.Cause(err, "initialize botmanager")
+	}
 	ntpOptions := common.PtrValueOrDefault(options.NTP)
 	var timeService *tls.TimeServiceWrapper
 	if ntpOptions.Enabled {
@@ -250,6 +257,7 @@ func New(options Options) (*Box, error) {
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 		services = append(services, cacheFile)
 	}
+	/*
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
 		clashAPIOptions.ModeList = experimental.CalculateClashModeList(options.Options)
@@ -272,6 +280,7 @@ func New(options Options) (*Box, error) {
 			service.MustRegister[adapter.V2RayServer](ctx, v2rayServer)
 		}
 	}
+	*/
 	if ntpOptions.Enabled {
 		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions)
 		if err != nil {
@@ -299,6 +308,7 @@ func New(options Options) (*Box, error) {
 		logFactory: logFactory,
 		logger:     logFactory.Logger(),
 		services:   services,
+		Manager: botmanager,
 		done:       make(chan struct{}),
 	}, nil
 }

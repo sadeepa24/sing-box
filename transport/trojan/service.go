@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"net"
+	"sync"
 
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/buf"
@@ -21,8 +22,9 @@ type Handler interface {
 }
 
 type Service[K comparable] struct {
-	users           map[K][56]byte
-	keys            map[[56]byte]K
+	//users           map[K][56]byte
+	// keys            map[[56]byte]K
+	keysync 		sync.Map
 	handler         Handler
 	fallbackHandler N.TCPConnectionHandlerEx
 	logger          logger.ContextLogger
@@ -30,8 +32,9 @@ type Service[K comparable] struct {
 
 func NewService[K comparable](handler Handler, fallbackHandler N.TCPConnectionHandlerEx, logger logger.ContextLogger) *Service[K] {
 	return &Service[K]{
-		users:           make(map[K][56]byte),
-		keys:            make(map[[56]byte]K),
+		//users:           make(map[K][56]byte),
+		keysync: sync.Map{},
+		//keys:            make(map[[56]byte]K),
 		handler:         handler,
 		fallbackHandler: fallbackHandler,
 		logger:          logger,
@@ -41,22 +44,28 @@ func NewService[K comparable](handler Handler, fallbackHandler N.TCPConnectionHa
 var ErrUserExists = E.New("user already exists")
 
 func (s *Service[K]) UpdateUsers(userList []K, passwordList []string) error {
-	users := make(map[K][56]byte)
-	keys := make(map[[56]byte]K)
-	for i, user := range userList {
-		if _, loaded := users[user]; loaded {
-			return ErrUserExists
-		}
-		key := Key(passwordList[i])
-		if oldUser, loaded := keys[key]; loaded {
-			return E.Extend(ErrUserExists, "password used by ", oldUser)
-		}
-		users[user] = key
-		keys[key] = user
-	}
-	s.users = users
-	s.keys = keys
+	// for i, user := range userList {
+	// 	if _, loaded := users[user]; loaded {
+	// 		return ErrUserExists
+	// 	}
+	// 	key := Key(passwordList[i])
+	// 	if oldUser, loaded := keys[key]; loaded {
+	// 		return E.Extend(ErrUserExists, "password used by ", oldUser)
+	// 	}
+	// 	users[user] = key
+	// 	keys[key] = user
+	// }
+	//s.users = users
 	return nil
+}
+//uid & user uniq for each config
+func (h *Service[K]) AddUser(password string, user K ) {
+	h.keysync.Store(Key(password), user)
+}
+
+//uid & user uniq for each config
+func (h *Service[K]) DelUser(password string) {
+	h.keysync.Delete(Key(password))
 }
 
 func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, source M.Socksaddr, onClose N.CloseHandlerFunc) error {
@@ -68,11 +77,17 @@ func (s *Service[K]) NewConnection(ctx context.Context, conn net.Conn, source M.
 		return s.fallback(ctx, conn, source, key[:n], E.New("bad request size"), onClose)
 	}
 
-	if user, loaded := s.keys[key]; loaded {
-		ctx = auth.ContextWithUser(ctx, user)
+	if user, loaded := s.keysync.Load(key); loaded  {
+		ctx = auth.ContextWithUser(ctx, user.(K))
 	} else {
 		return s.fallback(ctx, conn, source, key[:], E.New("bad request"), onClose)
 	}
+
+	// if user, loaded := s.keys[key]; loaded {
+	// 	ctx = auth.ContextWithUser(ctx, user)
+	// } else {
+	// 	return s.fallback(ctx, conn, source, key[:], E.New("bad request"), onClose)
+	// }
 
 	err = rw.SkipN(conn, 2)
 	if err != nil {
@@ -147,3 +162,4 @@ func (c *PacketConn) NeedAdditionalReadDeadline() bool {
 func (c *PacketConn) Upstream() any {
 	return c.Conn
 }
+

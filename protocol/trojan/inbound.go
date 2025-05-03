@@ -2,14 +2,17 @@ package trojan
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/connectedbot/opts"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -35,7 +38,8 @@ type Inbound struct {
 	logger                   log.ContextLogger
 	listener                 *listener.Listener
 	service                  *trojan.Service[int]
-	users                    []option.TrojanUser
+	//users                    []option.TrojanUser
+	users 	  				 sync.Map
 	tlsConfig                tls.ServerConfig
 	fallbackAddr             M.Socksaddr
 	fallbackAddrTLSNextProto map[string]M.Socksaddr
@@ -47,7 +51,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		Adapter: inbound.NewAdapter(C.TypeTrojan, tag),
 		router:  router,
 		logger:  logger,
-		users:   options.Users,
+		users:   sync.Map{},
 	}
 	if options.TLS != nil {
 		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
@@ -81,11 +85,13 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		fallbackHandler = adapter.NewUpstreamContextHandlerEx(inbound.fallbackConnection, nil)
 	}
 	service := trojan.NewService[int](adapter.NewUpstreamContextHandlerEx(inbound.newConnection, inbound.newPacketConnection), fallbackHandler, logger)
+	
 	err := service.UpdateUsers(common.MapIndexed(options.Users, func(index int, it option.TrojanUser) int {
 		return index
 	}), common.Map(options.Users, func(it option.TrojanUser) string {
 		return it.Password
 	}))
+
 	if err != nil {
 		return nil, err
 	}
@@ -183,12 +189,17 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
-	if user == "" {
+	user, ok := h.users.Load(userIndex)
+	if !ok {
+		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+		return
+	}
+	if user.(string) == "" {
 		user = F.ToString(userIndex)
 	} else {
-		metadata.User = user
+		metadata.User = user.(string)
 	}
+
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
@@ -201,11 +212,15 @@ func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, me
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
-	if user == "" {
+	user, ok := h.users.Load(userIndex)
+	if !ok {
+		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+		return
+	}
+	if user.(string) == "" {
 		user = F.ToString(userIndex)
 	} else {
-		metadata.User = user
+		metadata.User = user.(string)
 	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
 	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
@@ -254,4 +269,30 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	metadata.InboundOptions = h.listener.ListenOptions().InboundOptions
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnectionEx(ctx, conn, metadata, onClose)
+}
+
+
+
+
+//uid & user uniq for each config
+func (h *Inbound) AddUser(com opts.ComProto) error {
+	user, ok := com.Trojan()
+	if !ok {
+		return errors.New("cannot add this type of user to trojan inbound")
+	}
+
+	h.users.Store(com.Uid(), com.UserStr())
+	h.service.AddUser(user.Password, com.Uid())
+	return nil
+}
+
+//uid & user uniq for each config
+func (h *Inbound) DelUser(com opts.ComProto) error {
+	user, ok := com.Trojan()
+	if !ok {
+		return errors.New("cannot delete this type of user to trojan inbound")
+	}
+	h.users.Delete(com.Uid())
+	h.service.DelUser(user.Password)
+	return nil
 }

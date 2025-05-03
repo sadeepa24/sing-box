@@ -21,6 +21,8 @@ type _Outbound struct {
 	Type    string `json:"type"`
 	Tag     string `json:"tag,omitempty"`
 	Options any    `json:"-"`
+	Custom_info string `json:"info,omitempty"`
+	Id *int16 `json:"id,omitempty"`
 }
 
 type Outbound _Outbound

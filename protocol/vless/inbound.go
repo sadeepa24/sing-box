@@ -2,8 +2,10 @@ package vless
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -11,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/common/mux"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/common/uot"
+	"github.com/sagernet/sing-box/connectedbot/opts"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -39,7 +42,8 @@ type Inbound struct {
 	router    adapter.ConnectionRouterEx
 	logger    logger.ContextLogger
 	listener  *listener.Listener
-	users     []option.VLESSUser
+	// users     []option.VLESSUser
+	users 	  sync.Map
 	service   *vless.Service[int]
 	tlsConfig tls.ServerConfig
 	transport adapter.V2RayServerTransport
@@ -51,7 +55,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		ctx:     ctx,
 		router:  uot.NewRouter(router, logger),
 		logger:  logger,
-		users:   options.Users,
+		users:   sync.Map{},
 	}
 	var err error
 	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
@@ -59,13 +63,16 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		return nil, err
 	}
 	service := vless.NewService[int](logger, adapter.NewUpstreamContextHandlerEx(inbound.newConnectionEx, inbound.newPacketConnectionEx))
-	service.UpdateUsers(common.MapIndexed(inbound.users, func(index int, _ option.VLESSUser) int {
-		return index
-	}), common.Map(inbound.users, func(it option.VLESSUser) string {
-		return it.UUID
-	}), common.Map(inbound.users, func(it option.VLESSUser) string {
-		return it.Flow
-	}))
+	
+	// service.UpdateUsers(common.MapIndexed(inbound.users, func(index int, _ option.VLESSUser) int {
+	// 	return index
+	// }), common.Map(inbound.users, func(it option.VLESSUser) string {
+	// 	return it.UUID
+	// }), common.Map(inbound.users, func(it option.VLESSUser) string {
+	// 	return it.Flow
+	// }))
+
+
 	inbound.service = service
 	if options.TLS != nil {
 		inbound.tlsConfig, err = tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
@@ -163,11 +170,15 @@ func (h *Inbound) newConnectionEx(ctx context.Context, conn net.Conn, metadata a
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
-	if user == "" {
+	user, ok := h.users.Load(userIndex)
+	if !ok {
+		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+		return
+	}
+	if user.(string) == "" {
 		user = F.ToString(userIndex)
 	} else {
-		metadata.User = user
+		metadata.User = user.(string)
 	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
@@ -181,11 +192,15 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
-	if user == "" {
+	user, ok := h.users.Load(userIndex)
+	if !ok {
+		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
+		return
+	}
+	if user.(string) == "" {
 		user = F.ToString(userIndex)
 	} else {
-		metadata.User = user
+		metadata.User = user.(string)
 	}
 	if metadata.Destination.Fqdn == packetaddr.SeqPacketMagicAddress {
 		metadata.Destination = M.Socksaddr{}
@@ -207,4 +222,25 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnectionEx(ctx, conn, metadata, onClose)
+}
+
+//uid & user uniq for each config
+func (h *Inbound) AddUser(com opts.ComProto) error {
+	user, ok := com.Vless()
+	if !ok {
+		return errors.New("vless inbound not found in proto")
+	}
+	h.users.Store(com.Uid(), com.UserStr())
+	return h.service.AddUser(user.UUID, com.Uid(), user.Flow)
+}
+
+//uid & user uniq for each config
+func (h *Inbound) DelUser(com opts.ComProto) error {
+	user, ok := com.Vless()
+	if !ok {
+		return errors.New("vless inbound not found in proto")
+	}
+	h.users.Delete(com.Uid())
+	h.service.DelUser(user.UUID)
+	return nil
 }
