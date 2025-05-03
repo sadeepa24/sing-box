@@ -1,31 +1,42 @@
-# sing-box
+# sing-box Mod
 
-The universal proxy platform.
+## Overview
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/sing-box.svg)](https://repology.org/project/sing-box/versions)
+This project extends the functionality of the `sing-box` universal proxy platform, adding real-time user management and enhanced features for dynamic configurations.
 
-## Documentation
+## Features
+
+- **Same User Multiple Inbound Support**: Use the same configuration for multiple inbound.
+- **Real-Time Inbound Changes**: Dynamically update user inbound settings without restarting.
+- **Real-Time Outbound Changes**: Dynamically update user outbound settings without restarting.
+- **Real-Time Usage Monitoring**: Track user connection status in real time.
+- **Connection Limiting**: Apply IP and bandwidth limits.
+- **Connection Management**: Close all connections for a specific user.
+- **Comprehensive User Status**: Retrieve the status of all users at once.
+
+Already Sing Box supports adding/deleting new inbound/outbound.
+
+## New API Methods (of box.Box)
+
+### User Management
+
+- `AddUser(u opts.User) (opts.UserStatus, error)`: Add a new user.
+- `AddUserReset(u opts.User) (opts.UserStatus, error)`: reset alredy added user status with new u.
+- `RemoveUser(u opts.User) (opts.UserStatus, error)`: Remove an existing user.
+- `GetStatusUser(u opts.User) (opts.UserStatus, error)`: Get the status of a specific user.
+
+### Inbound/Outbound Management
+
+- `ResetInbound(u opts.User)`: Reset inbound settings for a user according to new u.
+- `ChangeOutbound(u opts.User) error`: Change outbound settings for a user according to new u.
+
+### Connection Management
+
+- `CloseAllConn(u opts.User)`: Close all active connections for a user.
+- `AllUserStatus() map[int]opts.UserStatus`: Retrieve the status of all users.
+
+## Official Documentation
 
 https://sing-box.sagernet.org
 
-## License
-
-```
-Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
-
-In addition, no derivative work may use the name or imply association
-with this application without prior consent.
-```
+The universal proxy platform.
