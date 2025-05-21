@@ -19,6 +19,8 @@ type UserStatus struct {
 	Upload   int64
 	Ip       map[string]int16
 	Disabled bool
+
+	UserID	int
 }
 
 type ComProto interface {

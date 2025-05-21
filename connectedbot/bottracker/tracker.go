@@ -25,7 +25,7 @@ type user struct {
 	allConn map[int64]ConnCloser
  	allConnAccess sync.RWMutex
 
-	uid int //only use for alluserstatus
+	uid int //can be used to identify a user which may have added many config
 }
 
 var (
@@ -145,11 +145,10 @@ func (c *ConnManager) AddUserReset(u opts.User) (opts.UserStatus, error) {
 }
 
 //this method do have some cost
-func (c *ConnManager) AllUserStatus() (map[int]opts.UserStatus) {
-	alluser := make(map[int]opts.UserStatus, c.userCount.Load())
+func (c *ConnManager) AllUserStatus() []opts.UserStatus {
+	alluser := make([]opts.UserStatus, c.userCount.Load())
 	c.user.Range(func(key, value any) bool {
-		usr := value.(*user)
-		alluser[usr.uid] = c.getstatus(usr)
+		alluser = append(alluser, c.getstatus(value.(*user)))
 		return true
 	})
 	return alluser
@@ -194,6 +193,7 @@ func (c *ConnManager) getstatus(u *user) opts.UserStatus {
 		Upload: u.upload.Load(),
 		Disabled: u.disables.Load(),
 		Ip: map[string]int16{},
+		UserID: u.uid,
 	}
 	u.Ip.Range(func(key, value any) bool {
 		status.Ip[key.(netip.Addr).String()] = int16(value.(*atomic.Int64).Load())
