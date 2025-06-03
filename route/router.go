@@ -15,11 +15,11 @@ import (
 	"github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/common/process"
 	"github.com/sagernet/sing-box/common/taskmonitor"
-	botrule "github.com/sagernet/sing-box/connectedbot/rule"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/route/botrule"
 	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-box/transport/fakeip"
 	dns "github.com/sagernet/sing-dns"
@@ -126,9 +126,12 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 			rule adapter.Rule
 			err error
 		)
-		if options.Type == C.RuleTypeBot {
+		switch options.Type {
+		case C.RuleTypeBot:
 			rule, err = botrule.NewBotRule(ctx, router.logger, options, false)
-		} else {	
+		case C.RuleTypeCallBack:
+			rule, err = botrule.NewCallBackRule(ctx, router.logger, options, false)
+		default:
 			rule, err = R.NewRule(ctx, router.logger, options, false)
 		}
 		if err != nil {

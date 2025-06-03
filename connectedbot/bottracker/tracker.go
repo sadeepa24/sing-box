@@ -32,11 +32,12 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 	ErrInvalidLogin = errors.New("login limit cannot be zero")
 )
-
+// do not copy after first use
 type ConnManager struct {
 	user sync.Map
 	inboundManager adapter.InboundManager
 	userCount *atomic.Int64
+	callback CallBack
 }
 
 func NewConnManager(inmg adapter.InboundManager) *ConnManager {
@@ -51,9 +52,28 @@ type ConnCloser struct {
 	src netip.Addr
 }
 
+type CallBack func (code int16, status opts.UserStatus)  
+
 type SrInbound interface {
 	DelUser(opts.ComProto) error
 	AddUser(opts.ComProto) error
+}
+
+// register this for rules
+// internal use do not use outside box.Box
+func (c *ConnManager) ReciveCallback(code int16, metadata *adapter.InboundContext) {
+	if c.callback != nil {
+		avuser, loaded := c.user.Load(metadata.User)
+		if !loaded {
+			return
+		}
+		stts := c.getstatus(avuser.(*user))
+		c.callback(code,stts)
+	}
+}
+
+func (c *ConnManager) SetCallback(cback CallBack) {
+	c.callback = cback
 }
 
 func (c *ConnManager) AddUser(u opts.User) (opts.UserStatus, error) {

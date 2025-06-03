@@ -4,6 +4,7 @@ const (
 	RuleTypeDefault = "default"
 	RuleTypeLogical = "logical"
 	RuleTypeBot = "botrule"
+	RuleTypeCallBack = "callback"
 )
 
 const (

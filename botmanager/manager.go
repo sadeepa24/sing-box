@@ -6,9 +6,9 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/connectedbot/bottracker"
 	"github.com/sagernet/sing-box/connectedbot/opts"
-	botrule "github.com/sagernet/sing-box/connectedbot/rule"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/route"
+	"github.com/sagernet/sing-box/route/botrule"
 )
 
 type Manager struct {
@@ -19,19 +19,21 @@ type Manager struct {
 }
 
 func NewManager(inboundManager adapter.InboundManager, router *route.Router) (*Manager, error) {
+	connmgr :=  bottracker.NewConnManager(inboundManager)
 	allrules := router.Rules()
 	r := map[string]*botrule.RuleForBot{}
 	for _, rule := range allrules {
-		if rule.Type() == C.RuleTypeBot {
+		switch rule.Type() {
+		case C.RuleTypeBot:
 			r[rule.(*botrule.RuleForBot).Outbound()] = rule.(*botrule.RuleForBot)
+		case C.RuleTypeCallBack:
+			rule.(*botrule.CallBackRule).SetCallback(connmgr.ReciveCallback)
 		}
 	}
 	if len(r) == 0 {
 		return nil, errors.New("botrule rule count cannot be zero")
 	}
-	connmgr :=  bottracker.NewConnManager(inboundManager)
 	router.SetTracker(connmgr)
-	
 	return &Manager{
 		ConnManager: connmgr,
 		rules: r,

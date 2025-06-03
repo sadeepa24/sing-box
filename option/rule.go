@@ -15,6 +15,7 @@ type _Rule struct {
 	Type           string      `json:"type,omitempty"`
 	DefaultOptions DefaultRule `json:"-"`
 	LogicalOptions LogicalRule `json:"-"`
+	Code int16 `json:"code,omitempty"`
 }
 
 type Rule _Rule
@@ -26,7 +27,10 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 		r.Type = ""
 		v = r.DefaultOptions
 	case C.RuleTypeBot:
-		r.Type = "botrule"
+		r.Type = C.RuleTypeBot
+		v = r.DefaultOptions
+	case C.RuleTypeCallBack:
+		r.Type = C.RuleTypeCallBack
 		v = r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = r.LogicalOptions
@@ -48,6 +52,9 @@ func (r *Rule) UnmarshalJSON(bytes []byte) error {
 		v = &r.DefaultOptions
 	case C.RuleTypeBot:
 		r.Type = C.RuleTypeBot
+		v = &r.DefaultOptions
+	case C.RuleTypeCallBack:
+		r.Type = C.RuleTypeCallBack
 		v = &r.DefaultOptions
 	case C.RuleTypeLogical:
 		v = &r.LogicalOptions

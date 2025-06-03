@@ -15,7 +15,7 @@ import (
 
 func NewRule(ctx context.Context, logger log.ContextLogger, options option.Rule, checkOutbound bool) (adapter.Rule, error) {
 	switch options.Type {
-	case "", C.RuleTypeDefault:
+	case "", C.RuleTypeDefault, C.RuleTypeCallBack:
 		if !options.DefaultOptions.IsValid() {
 			return nil, E.New("missing conditions")
 		}

@@ -66,3 +66,52 @@ func (r *RuleForBot) String() string {
 func (r *RuleForBot) Type() string { return C.RuleTypeBot }
 func (r *RuleForBot) UpdateGeosite() error {return nil }
 func (r *RuleForBot) Outbound() string {return r.outbound }
+
+
+type CallBackRule struct {
+	Code int16
+	itrule adapter.Rule
+	callback CallBackFunc
+}
+
+type CallBackFunc func(code int16, user *adapter.InboundContext)
+
+func NewCallBackRule(ctx context.Context, logger log.ContextLogger, options option.Rule, checkOutbound bool)(adapter.Rule, error) {
+	new, err := rule.NewRule(ctx, logger, options, checkOutbound)
+	if err != nil {
+		return nil, err
+	}
+	return &CallBackRule{
+		itrule: new,
+		Code: options.Code,
+	}, nil
+}
+
+
+func (c *CallBackRule) SetCallback(clback CallBackFunc) {
+	c.callback = clback
+}
+
+func (c *CallBackRule) Type() string {
+	return C.RuleTypeCallBack
+}
+func (c *CallBackRule) UpdateGeosite() error {
+	return c.itrule.UpdateGeosite()
+}
+func (c *CallBackRule) Action() adapter.RuleAction {
+	return c.itrule.Action()
+}
+
+func (c *CallBackRule) Match(metadata *adapter.InboundContext) bool {
+	matched := c.itrule.Match(metadata)
+	if matched && c.callback  != nil {
+		c.callback(c.Code, metadata)
+	}
+	return matched
+}
+func (c *CallBackRule) String() string {
+	return c.itrule.String()
+}
+func (c *CallBackRule) Start() error {return c.itrule.Start()}
+
+func (c *CallBackRule) Close() error {return c.itrule.Close()}
