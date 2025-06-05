@@ -39,14 +39,26 @@ type CallBackResult struct {
 }
 
 func (u *CallBackResult) String() string {
-	return fmt.Sprintf("Destination %s,  Source %s, Protocol %s, Domain %s, Inbound %s, Outbound %s,  -> %s | Download: %d, Upload: %d",
-		u.Destination.String(),
+	return fmt.Sprintf(
+		"Connection Info:\n"+
+			"  From      : %s\n"+
+			"  To        : %s\n"+
+			"  Protocol  : %s\n"+
+			"  Domain    : %s\n"+
+			"  Inbound   : %s\n"+
+			"  Outbound  : %s\n"+
+			"  User      : %s\n"+
+			"  Network   : %s\n"+
+			"  Download  : %d bytes\n"+
+			"  Upload    : %d bytes",
 		u.Source.String(),
+		u.Destination.String(),
 		u.Protocol,
 		u.Domain,
 		u.Inbound,
 		u.Outbound,
 		u.User,
+		u.Network,
 		u.Status.Download,
 		u.Status.Upload,
 	)
