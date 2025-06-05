@@ -111,13 +111,15 @@ func (c *ConnManager) AddUser(u opts.User) (opts.UserStatus, error) {
 	if err != nil {
 		return status, err
 	}
+	mxlogin := new(atomic.Int32)
+	mxlogin.Store(int32(u.MaxLogin))
 	c.user.Store(u.UserStr, &user{
 		upload: new(atomic.Int64),
 		download: new(atomic.Int64),
 		disables: &atomic.Bool{},
 		Ip: sync.Map{},
 		ipCount: new(atomic.Int32),
-		maxlogin: new(atomic.Int32),
+		maxlogin: mxlogin,
 		bandwidth: u.Bandwidth,
 		uid: u.Uid,
 		allConn: map[int64]ConnCloser{},
