@@ -52,7 +52,7 @@ type ConnCloser struct {
 	src netip.Addr
 }
 
-type CallBack func (code int16, status opts.UserStatus)  
+type CallBack func (code int16, status *opts.CallBackResult)  
 
 type SrInbound interface {
 	DelUser(opts.ComProto) error
@@ -68,7 +68,17 @@ func (c *ConnManager) ReciveCallback(code int16, metadata *adapter.InboundContex
 			return
 		}
 		stts := c.getstatus(avuser.(*user))
-		c.callback(code,stts)
+		c.callback(code, &opts.CallBackResult{
+			Status: stts,
+			Destination: metadata.Destination,
+			Source: metadata.Source,
+			Protocol: metadata.Protocol,
+			Network: metadata.Network,
+			Inbound: metadata.Inbound,
+			User: metadata.User,
+			Domain: metadata.Domain,
+			Outbound: metadata.Outbound,
+		})
 	}
 }
 
