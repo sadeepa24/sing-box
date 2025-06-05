@@ -37,15 +37,13 @@ func (c *ConnManager) RoutedConnection(_ context.Context, conn net.Conn, metadat
 		muser.allConn = map[int64]ConnCloser{}
 		muser.allConnAccess.Unlock()
 		conn.Close()
-
-
 		return conn
 	}
 	
 
 	connCount, ipvalid := muser.Ip.Load(metadata.Source.Addr)
 	if !ipvalid {
-		if muser.ipCount.Load() >= muser.maxlogin {
+		if muser.ipCount.Load() >= muser.maxlogin.Load() {
 			conn.Close()
 			return conn
 		}
@@ -71,7 +69,6 @@ func (c *ConnManager) RoutedConnection(_ context.Context, conn net.Conn, metadat
 		comId: id,
 		ipCounter: muser.ipCount,
 		pcloser: func ()  {
-
 			if muser.download.Load() + muser.upload.Load() >= muser.bandwidth {
 				if muser.disables.Swap(true) {
 					return
@@ -88,16 +85,9 @@ func (c *ConnManager) RoutedConnection(_ context.Context, conn net.Conn, metadat
 				muser.allConnAccess.Unlock()
 				return
 			}
-
-			muser.allConnAccess.RLock()
-			_, exists := muser.allConn[id]
-			muser.allConnAccess.RUnlock()
-			if exists {
-				muser.allConnAccess.Lock()
-				delete(muser.allConn, id)
-				muser.allConnAccess.Unlock()
-			}
-
+			muser.allConnAccess.Lock()
+			delete(muser.allConn, id)
+			muser.allConnAccess.Unlock()
 		},
 	} 
 
@@ -142,7 +132,7 @@ func (c *ConnManager) RoutedPacketConnection(_ context.Context, conn N.PacketCon
 
 	connCount, ipvalid := muser.Ip.Load(metadata.Source.Addr)
 	if !ipvalid {
-		if muser.ipCount.Load() >= muser.maxlogin {
+		if muser.ipCount.Load() >= muser.maxlogin.Load() {
 			conn.Close()
 			return conn
 		}
@@ -187,14 +177,9 @@ func (c *ConnManager) RoutedPacketConnection(_ context.Context, conn N.PacketCon
 				return
 			}
 
-			muser.allConnAccess.RLock()
-			_, exists := muser.allConn[id]
-			muser.allConnAccess.RUnlock()
-			if exists {
-				muser.allConnAccess.Lock()
-				delete(muser.allConn, id)
-				muser.allConnAccess.Unlock()
-			}
+			muser.allConnAccess.Lock()
+			delete(muser.allConn, id)
+			muser.allConnAccess.Unlock()
 
 		},
 	}

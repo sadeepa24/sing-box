@@ -18,7 +18,7 @@ type user struct {
 	upload *atomic.Int64
 	Ip sync.Map
 	ipCount *atomic.Int32
-	maxlogin int32
+	maxlogin *atomic.Int32
 	bandwidth int64
 	disables *atomic.Bool
 	
@@ -38,13 +38,17 @@ type ConnManager struct {
 	inboundManager adapter.InboundManager
 	userCount *atomic.Int64
 	callback CallBack
+	closeQueue chan *user
 }
 
 func NewConnManager(inmg adapter.InboundManager) *ConnManager {
-	return &ConnManager{
+	c :=  &ConnManager{
 		inboundManager: inmg,
 		userCount: new(atomic.Int64),
+		closeQueue: make(chan *user, 5000), 
 	}
+	go c.closeWorker()
+	return c
 }
 
 type ConnCloser struct {
@@ -82,6 +86,11 @@ func (c *ConnManager) ReciveCallback(code int16, metadata *adapter.InboundContex
 	}
 }
 
+func (c *ConnManager) Close()  error {
+	close(c.closeQueue)
+	return nil
+}
+
 func (c *ConnManager) SetCallback(cback CallBack) {
 	c.callback = cback
 }
@@ -108,7 +117,7 @@ func (c *ConnManager) AddUser(u opts.User) (opts.UserStatus, error) {
 		disables: &atomic.Bool{},
 		Ip: sync.Map{},
 		ipCount: new(atomic.Int32),
-		maxlogin: int32(u.MaxLogin),
+		maxlogin: new(atomic.Int32),
 		bandwidth: u.Bandwidth,
 		uid: u.Uid,
 		allConn: map[int64]ConnCloser{},
@@ -133,19 +142,25 @@ func (c *ConnManager) RemoveUser(u opts.User) (opts.UserStatus, error) { //acctu
 		return opts.UserStatus{}, ErrUserNotFound
 	}
 	nuser := ruser.(*user)
-	nuser.allConnAccess.RLock()
-	for _, oconn := range nuser.allConn {
-		oconn.close.Close()
+	select {
+		case c.closeQueue <- nuser:
+		default:
 	}
-	nuser.allConnAccess.RUnlock()
-	nuser.allConnAccess.Lock()
-	nuser.allConn = map[int64]ConnCloser{}
-	nuser.allConnAccess.Unlock()
-	
 	c.removeuserinbound(u)
 	c.userCount.Add(-1)
 	return c.getstatus(nuser), nil
 }
+
+func (c *ConnManager) closeWorker() {
+	for u := range c.closeQueue {
+		u.allConnAccess.RLock()
+		for _, conn := range u.allConn {
+			conn.close.Close()
+		}
+		u.allConnAccess.RUnlock()
+	}
+}
+
 
 func (c *ConnManager) CloseAllConn(u opts.User) {
 	ruser, loaded := c.user.Load(u.UserStr)
@@ -169,8 +184,24 @@ func (c *ConnManager) ResetInbound(u opts.User) {
 }
 
 func (c *ConnManager) AddUserReset(u opts.User) (opts.UserStatus, error) {
-	status, _ := c.RemoveUser(u) //error does not matter
-	_, err := c.AddUser(u)
+	avuser, loaded := c.user.Load(u.UserStr)
+	if !loaded {
+		return c.AddUser(u)
+	}
+	c.removeuserinbound(u)
+	ruser := avuser.(*user)
+	status := c.getstatus(ruser)
+	ruser.bandwidth = u.Bandwidth
+	ruser.maxlogin.Swap(int32(u.MaxLogin))
+	if ruser.maxlogin.Load() == 0 {
+		c.removeuserinbound(u)
+		return status, ErrInvalidLogin
+	}
+	ruser.upload.Swap(0)
+	ruser.download.Swap(0)
+	ruser.disables.Swap(false)
+	ruser.uid = u.Uid
+	err := c.addusertoinbound(u)
 	return status, err
 }
 
